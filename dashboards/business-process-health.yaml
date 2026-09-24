@@ -84,6 +84,7 @@ tiles:
     visualization: lineChart
     visualizationSettings:
       legend: { position: right, showLegend: true }
+      seriesConfig: { gapPolicy: connect }
     querySettings: {}
     position: { x: 0, y: 7, w: 24, h: 9 }
 

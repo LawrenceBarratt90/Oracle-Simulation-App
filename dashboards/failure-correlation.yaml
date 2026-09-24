@@ -67,6 +67,8 @@ tiles:
       | makeTimeseries total = count(), failed = countIf(milestone == "Bill Generation Failed"), interval: 10m
       | fieldsAdd failureRatePct = failed[]*100.0/total[]
     visualization: lineChart
+    visualizationSettings:
+      seriesConfig: { gapPolicy: connect }
     querySettings: {}
     position: { x: 0, y: 18, w: 24, h: 8 }
 
