@@ -1,0 +1,27 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Simulator runtime artifacts (PID/log files created by simulator_ctl.sh)
+run/
+
+# Customer configs contain live Dynatrace tokens — never commit these.
+# Only the template is tracked.
+customers/*.env
+!customers/example.env.example
+
+# Local AI agent skill installs (dtctl skill, dynatrace-for-ai skills) —
+# machine-specific tool caches, not part of the project.
+.agents/
+.claude/
+.github/skills/
+skills-lock.json
+
+# Working-copy dashboard files stamped with this tenant's live dashboard IDs
+# (from `dtctl apply --write-id`) — the portable, ID-free versions to ship
+# are in dashboards/. These root-level ones are local iteration artifacts.
+/dashboard-*.yaml
+
+# Editor
+.vscode/

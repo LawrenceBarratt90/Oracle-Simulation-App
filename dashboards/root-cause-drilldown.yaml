@@ -1,0 +1,73 @@
+kind: dashboard
+name: Oracle NFR Demo - Root-Cause Drilldown
+description: Failing spans side-by-side with correlated error log lines for the Oracle CC&B/Fusion/OIC synthetic demo.
+tiles:
+  - title: Header
+    type: markdown
+    content: |
+      ## 🔎 Root-Cause Drilldown
+      Failing spans (left) and their correlated log lines (right) — join on the correlation ID to land on the exact failing hop.
+    position: { x: 0, y: 0, w: 24, h: 1 }
+
+  - title: Failing Spans
+    type: data
+    query: >
+      fetch spans
+      | filter transaction.is_failed == true
+      | sort start_time desc
+      | fields start_time, service.name, span.name, dt.demo.correlation_id, customer.name
+      | limit 50
+    visualization: table
+    querySettings: {}
+    position: { x: 0, y: 1, w: 12, h: 12 }
+
+  - title: Correlated Error Logs
+    type: data
+    query: >
+      fetch logs
+      | filter isNotNull(dt.demo.correlation_id) and (contains(content, "ERROR") or contains(content, "Timeout") or contains(content, "deadlock"))
+      | sort timestamp desc
+      | fields timestamp, content, dt.demo.correlation_id
+      | limit 50
+    visualization: table
+    querySettings: {}
+    position: { x: 12, y: 1, w: 12, h: 12 }
+
+  - title: Log Volume Over Time
+    type: data
+    query: >
+      fetch logs
+      | filter isNotNull(dt.demo.correlation_id)
+      | makeTimeseries total = count(), interval: 10m
+    visualization: lineChart
+    querySettings: {}
+    position: { x: 0, y: 13, w: 16, h: 8 }
+
+  - title: Log Level Split
+    type: data
+    query: >
+      fetch logs
+      | filter isNotNull(dt.demo.correlation_id)
+      | fieldsAdd level = if(contains(content, "ERROR"), "ERROR", else: "INFO")
+      | summarize count(), by:{level}
+    visualization: donutChart
+    visualizationSettings:
+      labels: { showLabels: true }
+      valueSettings: { valueRepresentation: relative }
+    querySettings: {}
+    position: { x: 16, y: 13, w: 8, h: 8 }
+
+  - title: Avg Duration - Failed vs Successful Spans
+    type: data
+    query: >
+      fetch spans
+      | filter isNotNull(dt.demo.correlation_id)
+      | summarize avgDuration = avg(duration), by:{outcome = if(transaction.is_failed, "Failed", else: "Successful")}
+    visualization: categoricalBarChart
+    visualizationSettings:
+      categoryAxis: { label: { label: "Outcome", showLabel: true } }
+      numericAxis: { label: { label: "Avg Duration", showLabel: true } }
+      unitsOverrides:
+        - { identifier: avgDuration, unitCategory: time, baseUnit: nanosecond, displayUnit: millisecond, decimals: 1, suffix: "", delimiter: false }
+    querySettings: {}
+    position: { x: 0, y: 21, w: 24, h: 8 }

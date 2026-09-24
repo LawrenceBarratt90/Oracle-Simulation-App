@@ -1,0 +1,97 @@
+kind: dashboard
+name: Oracle NFR Demo - Failure Correlation
+description: Failed transaction volume, breakdown by failing stage, and detail list with correlation IDs for the Oracle CC&B/Fusion/OIC synthetic demo.
+tiles:
+  - title: Header
+    type: markdown
+    content: |
+      ## ⚠️ Failure Correlation
+      Failed transactions, broken down by the stage that failed, with correlation IDs surfaced for one-click drill-through into Root-Cause Drilldown.
+    position: { x: 0, y: 0, w: 24, h: 1 }
+
+  - title: Failed Transactions
+    type: data
+    query: >
+      fetch bizevents
+      | filter event.provider == "oracle-nfr-demo-simulator" and success == false
+      | summarize failedCount = count()
+    visualization: singleValue
+    visualizationSettings:
+      colorThresholdTarget: value
+      showIcon: true
+      icon: AnalyticsIcon
+      label: { label: "Failed Transactions", mode: custom }
+      dataMapping: { value: failedCount }
+      thresholds:
+        - id: 1
+          field: failedCount
+          title: ""
+          isEnabled: true
+          rules:
+            - { id: 0, comparator: ">=", value: 0, label: OK, color: { Default: "var(--dt-colors-charts-status-ideal-default, #2f6862)" } }
+            - { id: 1, comparator: ">=", value: 5, label: WARNING, color: { Default: "var(--dt-colors-charts-status-warning-default, #eea53c)" } }
+            - { id: 2, comparator: ">=", value: 20, label: CRITICAL, color: { Default: "var(--dt-colors-charts-status-critical-default, #c62239)" } }
+    querySettings: {}
+    position: { x: 0, y: 1, w: 8, h: 7 }
+
+  - title: Failures by Stage
+    type: data
+    query: >
+      fetch bizevents
+      | filter event.provider == "oracle-nfr-demo-simulator" and success == false
+      | summarize count(), by:{failure_stage}
+    visualization: categoricalBarChart
+    visualizationSettings:
+      categoryAxis: { label: { label: "Stage", showLabel: true } }
+      numericAxis: { label: { label: "Failures", showLabel: true } }
+    querySettings: {}
+    position: { x: 8, y: 1, w: 16, h: 7 }
+
+  - title: Recent Failed Transactions
+    type: data
+    query: >
+      fetch bizevents
+      | filter event.provider == "oracle-nfr-demo-simulator" and success == false
+      | sort timestamp desc
+      | fields timestamp, milestone, failure_stage, dt.demo.correlation_id, customer.name
+      | limit 50
+    visualization: table
+    querySettings: {}
+    position: { x: 0, y: 8, w: 24, h: 10 }
+
+  - title: Failure Rate Over Time
+    type: data
+    query: >
+      fetch bizevents
+      | filter event.provider == "oracle-nfr-demo-simulator" and in(milestone, {"Bill Generation Completed","Bill Generation Failed"})
+      | makeTimeseries total = count(), failed = countIf(milestone == "Bill Generation Failed"), interval: 10m
+      | fieldsAdd failureRatePct = failed[]*100.0/total[]
+    visualization: lineChart
+    querySettings: {}
+    position: { x: 0, y: 18, w: 24, h: 8 }
+
+  - title: Failing Spans by Service
+    type: data
+    query: >
+      fetch spans
+      | filter transaction.is_failed == true
+      | summarize count(), by:{service.name}
+    visualization: categoricalBarChart
+    visualizationSettings:
+      categoryAxis: { label: { label: "Service", showLabel: true } }
+      numericAxis: { label: { label: "Failing spans", showLabel: true } }
+    querySettings: {}
+    position: { x: 0, y: 26, w: 12, h: 8 }
+
+  - title: Failing Spans Instrumentation Split
+    type: data
+    query: >
+      fetch spans
+      | filter transaction.is_failed == true
+      | summarize count(), by:{instrumentation.simulated_type}
+    visualization: donutChart
+    visualizationSettings:
+      labels: { showLabels: true }
+      valueSettings: { valueRepresentation: relative }
+    querySettings: {}
+    position: { x: 12, y: 26, w: 12, h: 8 }

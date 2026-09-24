@@ -1,0 +1,78 @@
+kind: dashboard
+name: Oracle NFR Demo - Transaction Journey
+description: Full span-by-span trace of a business transaction across OIC, Fusion SaaS, WebLogic, and Oracle DB for the Oracle CC&B/Fusion/OIC synthetic demo.
+tiles:
+  - title: Header
+    type: markdown
+    content: |
+      ## 🧭 Transaction Journey
+      Recent business milestones and the underlying span-by-span trace across OIC → Fusion → WebLogic → Oracle DB. Grab a correlation ID from the milestones table below and follow it through the spans table.
+    position: { x: 0, y: 0, w: 24, h: 1 }
+
+  - title: Recent Transaction Milestones
+    type: data
+    query: >
+      fetch bizevents
+      | filter event.provider == "oracle-nfr-demo-simulator"
+      | sort timestamp desc
+      | fields timestamp, milestone, success, dt.demo.correlation_id, customer.name
+      | limit 50
+    visualization: table
+    querySettings: {}
+    position: { x: 0, y: 1, w: 24, h: 10 }
+
+  - title: Recent Span-Level Journey (all layers)
+    type: data
+    query: >
+      fetch spans
+      | filter isNotNull(dt.demo.correlation_id)
+      | sort start_time desc
+      | fields start_time, service.name, span.name, span.kind, duration, dt.demo.correlation_id, customer.name
+      | limit 100
+    visualization: table
+    visualizationSettings:
+      unitsOverrides:
+        - { identifier: duration, unitCategory: time, baseUnit: nanosecond, displayUnit: millisecond, decimals: 1, suffix: "", delimiter: false }
+    querySettings: {}
+    position: { x: 0, y: 11, w: 24, h: 12 }
+
+  - title: Duration Percentiles by Service (p50/p90/p99)
+    type: data
+    query: >
+      fetch spans
+      | filter isNotNull(dt.demo.correlation_id)
+      | summarize p50 = percentile(duration,50), p90 = percentile(duration,90), p99 = percentile(duration,99), count(), by:{service.name}
+    visualization: table
+    visualizationSettings:
+      unitsOverrides:
+        - { identifier: p50, unitCategory: time, baseUnit: nanosecond, displayUnit: millisecond, decimals: 1, suffix: "", delimiter: false }
+        - { identifier: p90, unitCategory: time, baseUnit: nanosecond, displayUnit: millisecond, decimals: 1, suffix: "", delimiter: false }
+        - { identifier: p99, unitCategory: time, baseUnit: nanosecond, displayUnit: millisecond, decimals: 1, suffix: "", delimiter: false }
+    querySettings: {}
+    position: { x: 0, y: 23, w: 24, h: 7 }
+
+  - title: Avg Duration Over Time by Service
+    type: data
+    query: >
+      fetch spans
+      | filter isNotNull(dt.demo.correlation_id)
+      | makeTimeseries avgDuration = avg(duration), interval: 10m, by:{service.name}
+    visualization: lineChart
+    visualizationSettings:
+      legend: { position: right, showLegend: true }
+      unitsOverrides:
+        - { identifier: avgDuration, unitCategory: time, baseUnit: nanosecond, displayUnit: millisecond, decimals: 1, suffix: "", delimiter: false }
+    querySettings: {}
+    position: { x: 0, y: 30, w: 24, h: 9 }
+
+  - title: Avg Duration Heatmap by Service
+    type: data
+    query: >
+      fetch spans
+      | filter isNotNull(dt.demo.correlation_id)
+      | summarize avgDuration = avg(duration), by:{x = toString(bin(start_time, 10m)), service.name}
+    visualization: heatmap
+    visualizationSettings:
+      dataMapping: { xAxis: x, yAxis: service.name, bucketValue: avgDuration }
+    querySettings: {}
+    position: { x: 0, y: 39, w: 24, h: 9 }

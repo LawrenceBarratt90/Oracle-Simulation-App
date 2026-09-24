@@ -1,0 +1,127 @@
+kind: dashboard
+name: Oracle NFR Demo - Business Process Health
+description: Bizevent volume and success rate for the Oracle CC&B/Fusion/OIC synthetic demo.
+tiles:
+  - title: Header
+    type: markdown
+    content: |
+      ## 📊 Business Process Health
+      Overall health of the Bill Generation business process, driven by `bizevents` emitted at each milestone.
+    position: { x: 0, y: 0, w: 24, h: 1 }
+
+  - title: Success Rate
+    type: data
+    query: >
+      fetch bizevents
+      | filter event.provider == "oracle-nfr-demo-simulator" and in(milestone, {"Bill Generation Completed","Bill Generation Failed"})
+      | summarize total = count(), failed = countIf(milestone == "Bill Generation Failed")
+      | fields successRatePct = round(100.0 - failed*100.0/total, decimals:1)
+    visualization: singleValue
+    visualizationSettings:
+      colorThresholdTarget: value
+      showIcon: true
+      icon: AnalyticsIcon
+      label: { label: "Success Rate %", mode: custom }
+      dataMapping: { value: successRatePct }
+      thresholds:
+        - id: 1
+          field: successRatePct
+          title: ""
+          isEnabled: true
+          rules:
+            - { id: 0, comparator: ">=", value: 0, label: CRITICAL, color: { Default: "var(--dt-colors-charts-status-critical-default, #c62239)" } }
+            - { id: 1, comparator: ">=", value: 80, label: WARNING, color: { Default: "var(--dt-colors-charts-status-warning-default, #eea53c)" } }
+            - { id: 2, comparator: ">=", value: 95, label: OK, color: { Default: "var(--dt-colors-charts-status-ideal-default, #2f6862)" } }
+    querySettings: {}
+    position: { x: 0, y: 1, w: 8, h: 6 }
+
+  - title: Total Transactions
+    type: data
+    query: >
+      fetch bizevents
+      | filter event.provider == "oracle-nfr-demo-simulator" and milestone == "Bill Generation Started"
+      | summarize totalTransactions = count()
+    visualization: singleValue
+    visualizationSettings:
+      showIcon: true
+      icon: AnalyticsIcon
+      label: { label: "Total Transactions", mode: custom }
+      dataMapping: { value: totalTransactions }
+    querySettings: {}
+    position: { x: 8, y: 1, w: 8, h: 6 }
+
+  - title: Failed Transactions
+    type: data
+    query: >
+      fetch bizevents
+      | filter event.provider == "oracle-nfr-demo-simulator" and success == false
+      | summarize failedCount = count()
+    visualization: singleValue
+    visualizationSettings:
+      colorThresholdTarget: value
+      showIcon: true
+      icon: AnalyticsIcon
+      label: { label: "Failed Transactions", mode: custom }
+      dataMapping: { value: failedCount }
+      thresholds:
+        - id: 1
+          field: failedCount
+          title: ""
+          isEnabled: true
+          rules:
+            - { id: 0, comparator: ">=", value: 0, label: OK, color: { Default: "var(--dt-colors-charts-status-ideal-default, #2f6862)" } }
+            - { id: 1, comparator: ">=", value: 5, label: WARNING, color: { Default: "var(--dt-colors-charts-status-warning-default, #eea53c)" } }
+            - { id: 2, comparator: ">=", value: 20, label: CRITICAL, color: { Default: "var(--dt-colors-charts-status-critical-default, #c62239)" } }
+    querySettings: {}
+    position: { x: 16, y: 1, w: 8, h: 6 }
+
+  - title: Business Event Volume Over Time
+    type: data
+    query: >
+      fetch bizevents
+      | filter event.provider == "oracle-nfr-demo-simulator"
+      | makeTimeseries total = count(), interval: 5m, by:{milestone}
+    visualization: lineChart
+    visualizationSettings:
+      legend: { position: right, showLegend: true }
+    querySettings: {}
+    position: { x: 0, y: 7, w: 24, h: 9 }
+
+  - title: Instrumentation Split (OTel-only vs OneAgent-equivalent)
+    type: data
+    query: >
+      fetch spans
+      | filter isNotNull(dt.demo.correlation_id)
+      | summarize count(), by:{instrumentation.simulated_type}
+    visualization: donutChart
+    visualizationSettings:
+      labels: { showLabels: true }
+      valueSettings: { valueRepresentation: relative }
+    querySettings: {}
+    position: { x: 0, y: 16, w: 8, h: 8 }
+
+  - title: Span Volume by Service
+    type: data
+    query: >
+      fetch spans
+      | filter isNotNull(dt.demo.correlation_id)
+      | summarize count(), by:{service.name}
+    visualization: categoricalBarChart
+    visualizationSettings:
+      categoryAxis: { label: { label: "Service", showLabel: true } }
+      numericAxis: { label: { label: "Spans", showLabel: true } }
+      layout: { groupMode: stacked, position: horizontal }
+    querySettings: {}
+    position: { x: 8, y: 16, w: 10, h: 8 }
+
+  - title: Span Kind Split
+    type: data
+    query: >
+      fetch spans
+      | filter isNotNull(dt.demo.correlation_id)
+      | summarize count(), by:{span.kind}
+    visualization: pieChart
+    visualizationSettings:
+      labels: { showLabels: true }
+    querySettings: {}
+    position: { x: 18, y: 16, w: 6, h: 8 }
